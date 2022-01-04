@@ -6,8 +6,8 @@ name = "pypi"
 [packages]
 python3-discogs-client = "*"
 pillow = "*"
+pigpio = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.9"

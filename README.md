@@ -27,6 +27,7 @@ sudo /path/to/fbcp-ili9341/build/fbcp-ili9341 &
 
 
 Install Dependencies
+sudo apt install pipenv
 pipenv install
 
 
