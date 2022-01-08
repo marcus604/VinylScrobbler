@@ -11,6 +11,8 @@ Generate Discogs api key
 
 Generate last.fm api key
 
+Copy config.ini.example to config.ini and add api keys
+
 Setup Display on Raspberry Pi
 
 Setup will differ depending on which Raspberry Pi board and display you are using
@@ -27,8 +29,14 @@ sudo /path/to/fbcp-ili9341/build/fbcp-ili9341 &
 
 
 Install Dependencies
-sudo apt install pipenv
-pipenv install
+
+
+Due to requirements of keyboard libary requiring root other packages must be installed as root; This is normally (and still kind of is) very bad practice and should never be done. If any of the upstream libraries were to become malicious they would run as root on the raspberry pi. I would recommend not to have anything else running on this pi to lower this risk.
+
+sudo apt install python-pip
+sudo pip install python3-discogs-client
+sudo pip install keyboard
+
 
 
 Run with
