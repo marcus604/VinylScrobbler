@@ -11,6 +11,7 @@ import threading
 import discogs_client
 from PIL import Image
 
+
 #Custom
 from Classes import *
 from log import getLogger, logging
@@ -24,6 +25,7 @@ COLLECTION_FILE_FQ = "{}/{}".format(DATA_DIR_NAME, COLLECTION_FILE_NAME)
 IMAGE_DIR_FQ = "{}/{}".format(DATA_DIR_NAME, IMAGE_DIR_NAME)
 TYPE_PARTIAL = "Partial"
 TYPE_FULL = "Full"
+
 
 logger = getLogger(__name__, "logs/{}.log".format(PROGRAM_NAME))
 
@@ -194,7 +196,8 @@ def init():
         pi.callback(Enc_DT, pigpio.EITHER_EDGE, rotary_interrupt)
         pi.callback(Enc_CLK, pigpio.EITHER_EDGE, rotary_interrupt)
         pi.callback(Enc_SW, pigpio.FALLING_EDGE, rotary_switch_interrupt)
-        os.system("fim -a -q data/images/*.jpg")
+        os.system("fim -a -q resources/menu/start/*.png")
+        #os.system("fim -a -q data/images/*.jpg")
 
 def rotary_switch_interrupt(gpio,level,tim):
         time.sleep(0.3)
