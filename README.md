@@ -32,6 +32,7 @@ Edit /etc/rtc.local in sudo mode and add
 ```
 sudo apt install python3-pip
 sudo apt install python3-pigpio
+sudo systemctl enable pigpiod
 sudo apt install fim
 sudo apt install libopenjp2-7
 ```
