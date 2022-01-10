@@ -1,103 +1,180 @@
 import json
+import urllib.request
+from pathlib import Path
 
 import discogs_client
 from PIL import Image
 
-def saveToJSON(filename, data):
-    with open(filename, "w") as outfile:
-        json.dump(data, outfile)
+class DiscogsConnectError(Exception):
+    pass
 
-#Needed to download images from discogs
-def generateURLOpener():
-    opener = urllib.request.build_opener()
-    opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-    urllib.request.install_opener(opener)
+class DiscogsCredentialError(Exception):
+    pass
+
+class DiscogsLibraryError(Exception):
+    pass
+
+class Discogs:
+
+    TYPE_PARTIAL = "Partial"
+    TYPE_FULL = "Full"
+
+    def __init__(self, token, username, dataDirName, imageDirName, collectionFileName, programName, version, logger):
+        self.token = token
+        self.username = username
+        self.dataDirName = dataDirName
+        self.imageDirName = imageDirName
+        self.collectionFileName = collectionFileName
+        self.programName = programName
+        self.version = version
+        self.logger = logger
+        self.client = ""
+        self.user = ""
+
+        self.collectionFileFQPath = "{}/{}".format(dataDirName, collectionFileName)
+        self.imageDirFQPath = "{}/{}".format(dataDirName, imageDirName)
+
     
-def saveAlbumArtwork(url, id, dest):
-    filename = "{}/{}.jpg".format(dest, id)
+    def getLibrary(self):
+        try:
+            with open(self.collectionFileFQPath, "r") as infile:
+                return json.load(infile)
+        except FileNotFoundError:
+            raise DiscogsLibraryError("No library found")
 
-    urllib.request.urlretrieve(url, filename)
+    def connect(self):
+        clienttString = "{}/{}".format(self.programName, self.version)
 
-    resizeImage(filename)
+        try:
+            self.getClient()
+            self.getUser()
+        except Exception as e:
+            raise
 
-def resizeImage(imageFile):
-    basewidth = 240
-    img = Image.open(imageFile)
-    wpercent = (basewidth/float(img.size[0]))
-    hsize = int((float(img.size[1])*float(wpercent)))
-    img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-    img.save(imageFile)
+    def createLibraryDir(self):
+        Path(self.imageDirFQPath).mkdir(parents=True, exist_ok=True)
+        self.logger.info("Created library directory: {}".format(self.imageDirFQPath))
 
+    def getClient(self):
+        clientString = "{}/{}".format(self.programName, self.version)
 
-def getRecordCollection(type, user):
-    generateURLOpener()
-    userCollectionDict = {}
-    collectionItems = getDiscogsUserCollection(user)
+        self.client = discogs_client.Client(clientString, user_token=self.token)
 
-    totalAlbums = len(collectionItems)
-    count = 0
+        try:
+            self.client.identity()
+            self.logger.info("Discogs Client Created")
+        except discogs_client.exceptions.HTTPError:
+            raise DiscogsCredentialError("Invalid token")
 
-    if type is TYPE_PARTIAL:
-        currentCollection = getCurrentCollection(COLLECTION_FILE_FQ)
+    def getUser(self):
+        self.user = self.client.user(self.username)
 
-    for collectionItem in collectionItems:
+        try:
+            self.user.id
+            self.logger.info("Discogs user created")
+        except discogs_client.exceptions.HTTPError:
+            raise DiscogsCredentialError("No such username")
 
-        release = collectionItem.release
-        id = release.id
+    def fullLibraryUpdate(self):
+        self.getRecordCollection(self.TYPE_FULL)
+        self.logger.info("Full discogs library updated")
+            
+    
+    def saveToJSON(self, filename, data):
+        with open(filename, "w") as outfile:
+            json.dump(data, outfile)
 
-        if type is TYPE_PARTIAL:
-            if str(id) in currentCollection:
-                logger.debug("Album {} already exists".format(id))
-                continue
-
+    #Needed to download images from discogs
+    def generateURLOpener(self):
+        opener = urllib.request.build_opener()
+        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+        urllib.request.install_opener(opener)
         
-        #check if more than one artist
-        if len(release.artists) != 1:
-            logger.debug("More than 1 artist found on release {}".format(id))
-        artist = release.artists[0].name
+    def saveAlbumArtwork(self, url, id, dest):
+        filename = "{}/{}.jpg".format(dest, id)
 
-        #Download image
-        imageURL = release.images[0]
+        urllib.request.urlretrieve(url, filename)
 
-        title = release.title
+        self.resizeImage(filename)
 
-        tracks = []
-        for track in release.tracklist:
-            newTrack = {"title": track.title, "position": track.position, "duration": track.duration}
-            tracks.append(newTrack)
-
-        album = {"title": title, "artist": artist, "tracks": tracks}
-        saveAlbumArtwork(imageURL.get("uri"), id, IMAGE_DIR_FQ)
-        logger.debug("Grabbed album: {}".format(album))
-        userCollectionDict[id] = album
-
-    return userCollectionDict
+    def resizeImage(self, imageFile):
+        basewidth = 240
+        img = Image.open(imageFile)
+        wpercent = (basewidth/float(img.size[0]))
+        hsize = int((float(img.size[1])*float(wpercent)))
+        img = img.resize((basewidth,hsize), Image.ANTIALIAS)
+        img.save(imageFile)
 
 
-def getCurrentCollection(filename):
-    with open(filename, "r") as infile:
-        return json.load(infile)
+    def getRecordCollection(self, type):
+        self.generateURLOpener()
+        userCollectionDict = {}
+        collectionItems = self.getDiscogsUserCollection(self.user)
+
+        totalAlbums = len(collectionItems)
+        count = 0
+
+        if type is self.TYPE_PARTIAL:
+            currentCollection = self.getCurrentCollection(self.collectionFileFQPath)
+
+        for collectionItem in collectionItems:
+
+            release = collectionItem.release
+            id = release.id
+
+            if type is self.TYPE_PARTIAL:
+                if str(id) in currentCollection:
+                    self.logger.debug("Album {} already exists".format(id))
+                    continue
+
+            
+            #check if more than one artist
+            if len(release.artists) != 1:
+                self.logger.debug("More than 1 artist found on release {}".format(id))
+            artist = release.artists[0].name
+
+            #Download image
+            imageURL = release.images[0]
+
+            title = release.title
+
+            tracks = []
+            for track in release.tracklist:
+                newTrack = {"title": track.title, "position": track.position, "duration": track.duration}
+                tracks.append(newTrack)
+
+            album = {"title": title, "artist": artist, "tracks": tracks}
+            self.saveAlbumArtwork(imageURL.get("uri"), id, self.imageDirFQPath)
+            self.logger.debug("Grabbed album: {}".format(album))
+            userCollectionDict[id] = album
 
 
-def getDiscogsUser(discogsClient, username):
-    return discogsClient.user(username)
-
-def getDiscogsUserCollection(user):
-    #return user.collection_folders[1].releases #TODO remove: used for debugging
-    return user.collection_folders[0].releases #0 is all folder
+        self.saveToJSON(self.collectionFileFQPath, userCollectionDict)
+        
 
 
-def getDiscogsClient(appName, version, userToken):
-    clientString = "{}/{}".format(appName, version)
-
-    return discogs_client.Client(clientString, user_token=userToken)
-
-def saveAlbumCollection(type, config):
-
-    discogsClient = getDiscogsClient(PROGRAM_NAME, VERSION, config["TOKEN"])
     
-    user = getDiscogsUser(discogsClient, config["USERNAME"])
-    
-    userCollection = getRecordCollection(type, user)
 
-    saveToJSON(COLLECTION_FILE_FQ, userCollection)
+
+
+    
+
+
+
+    def getDiscogsUserCollection(self, user):
+        #return user.collection_folders[1].releases #TODO remove: used for debugging
+        return user.collection_folders[0].releases #0 is all folder
+
+
+    
+    def saveAlbumCollection(self, type, config):
+
+        discogsClient = self.getDiscogsClient(self.programName, self.version, self.token)
+        
+        user = self.getDiscogsUser(discogsClient, self.username)
+        
+        userCollection = self.getRecordCollection(type, user)
+
+        self.saveToJSON(self.collectionFileFQPath, userCollection)
+
+

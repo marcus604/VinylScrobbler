@@ -22,10 +22,7 @@ VERSION = 0.2
 DATA_DIR_NAME = "data"
 IMAGE_DIR_NAME = "images"
 COLLECTION_FILE_NAME = "userCollection.json"
-COLLECTION_FILE_FQ = "{}/{}".format(DATA_DIR_NAME, COLLECTION_FILE_NAME)
-IMAGE_DIR_FQ = "{}/{}".format(DATA_DIR_NAME, IMAGE_DIR_NAME)
-TYPE_PARTIAL = "Partial"
-TYPE_FULL = "Full"
+
 
 
 logger = getLogger(__name__, "logs/{}.log".format(PROGRAM_NAME))
@@ -73,21 +70,6 @@ def toggleBacklight():
         logger.debug("backlight error: {}".format(e))
 
 
-def getDiscogsLibrary():
-        #Get config file
-        config = ConfigParser()
-
-        config.read("config.ini")
-        discogsConfig = config["DISCOGS"]
-
-        Path(IMAGE_DIR_FQ).mkdir(parents=True, exist_ok=True)
-        
-
-        try:
-                getCurrentCollection(COLLECTION_FILE_FQ)
-        except FileNotFoundError:
-                logger.info("No collection found")
-                saveAlbumCollection(TYPE_FULL, discogsConfig)
        
 
 def rotary_switch_interrupt(gpio,level,tim):
@@ -135,6 +117,43 @@ def main():
 
     #Log startup
     logLaunch()
+    
+    config = ConfigParser()
+    
+    config.read("config.ini")
+    logger.debug("Loaded config")
+
+    discogsConfig = config["DISCOGS"]
+
+    discogs = Discogs(
+        discogsConfig["TOKEN"],
+        discogsConfig["USERNAME"],
+        DATA_DIR_NAME,
+        IMAGE_DIR_NAME,
+        COLLECTION_FILE_NAME,
+        PROGRAM_NAME,
+        VERSION,
+        logger)
+
+    try:
+        discogs.getLibrary()
+    except DiscogsLibraryError as e:
+        logger.debug(e)
+        try:
+            discogs.createLibraryDir()
+            discogs.connect()
+            discogs.fullLibraryUpdate()
+            #Display loading menu
+        except (DiscogsConnectError, DiscogsCredentialError) as e:
+            logger.error(e)
+            quit()
+        
+    
+
+ 
+
+    #Check if last.fm connection is valid
+    
     global pi
     counter = 100
     pi = pigpio.pi()                # init pigpio deamon
@@ -145,7 +164,8 @@ def main():
     pi.callback(Enc_DT, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_CLK, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_SW, pigpio.FALLING_EDGE, rotary_switch_interrupt)
-    os.system("fim -a -q resources/menu/start/*.png")
+    os.system("fim -a -q data/images/*.jpg") #Should create this from variable
+    #os.system("fim -a -q resources/menu/start/*.png")
 
     while True:
             time.sleep(10)
