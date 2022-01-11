@@ -26,6 +26,14 @@ Edit /etc/rtc.local in sudo mode and add
 
 ```sudo /path/to/fbcp-ili9341/build/fbcp-ili9341 &```
 
+### Stop cursor blinking
+
+Append to /boot/cmdline.txt (Requires a reboot)
+
+```vt.global_cursor_default=0```
+
+
+
 ## Install Dependencies
 
 ### [System]
