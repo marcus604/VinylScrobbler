@@ -24,10 +24,10 @@ SELECT_SIDE_DIR = "select_side"
 
 EXT_STRING = ".png"
 
+DISPLAY_DIMENSIONS = (240,240)
 
 FONT_REGULAR_STRING = "DejaVuSans.ttf"
 FONT_BOLD_STRING = "DejaVuSans-Bold.ttf"
-
 FONT_SIZE = 32
 FONT_COLOUR = (255,255,255)
 
@@ -54,21 +54,23 @@ def drawMenu(img, options, selected):
 
 def generateMenuImages(options, path):
 
+    count = 1
     for option in options:
-        img = Image.new("RGB", (240,240), color = 'black')
+        img = Image.new("RGB", DISPLAY_DIMENSIONS, color = 'black')
         img = drawMenu(img, options, option)
 
-        menuNameString = "{}/{}/{}{}".format(RESOURCES_DIR, path, option, EXT_STRING)
+        menuNameString = "{}/{}/{}-{}{}".format(RESOURCES_DIR, path, count, option, EXT_STRING)
         img.save(menuNameString)
+        count += 1
 
 startMenus = [START_MENU_ALBUM, START_MENU_SYNC, START_MENU_RESET]
 
 selectDiscMenus = [SELECT_MENU_DISC1, SELECT_MENU_DISC2, SELECT_MENU_DISC3, SELECT_MENU_DISC4, SELECT_MENU_DISC5, SELECT_MENU_DISC6]
 selectSideMenus = [SELECT_MENU_SIDEA, SELECT_MENU_SIDEB]
 
-#generateMenuImages(startMenus, START_DIR)
-#generateMenuImages(selectDiscMenus, SELECT_DISC_DIR)
-#generateMenuImages(selectSideMenus, SELECT_SIDE_DIR)
+generateMenuImages(startMenus, START_DIR)
+generateMenuImages(selectDiscMenus, SELECT_DISC_DIR)
+generateMenuImages(selectSideMenus, SELECT_SIDE_DIR)
 
 
 

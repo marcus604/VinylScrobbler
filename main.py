@@ -164,8 +164,8 @@ def main():
     pi.callback(Enc_DT, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_CLK, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_SW, pigpio.FALLING_EDGE, rotary_switch_interrupt)
-    os.system("fim -a -q data/images/*.jpg") #Should create this from variable
-    #os.system("fim -a -q resources/menu/start/*.png")
+    #os.system("fim -a -q data/images/*.jpg") #Should create this from variable
+    os.system("fim -a -q resources/menus/start/*.png")
 
     while True:
             time.sleep(10)
