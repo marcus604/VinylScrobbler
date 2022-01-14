@@ -9,6 +9,7 @@ import keyboard
 import threading
 
 
+
 from PIL import Image
 
 
@@ -45,6 +46,9 @@ last_gpio = 0
 menuSize = 4
 counter = 1
 
+
+
+
 def logLaunch():
     logger.info("Starting {}".center(40, "=").format(PROGRAM_NAME))
     if MODE_READ_ONLY:
@@ -70,7 +74,14 @@ def toggleBacklight():
         logger.debug("backlight error: {}".format(e))
 
 
-       
+def showSettings():
+    os.system("pkill fim")
+    os.system("fim -a -q resources/menus/settings/*.png")
+    currentMode = "Settings"
+
+def showAlbumSelection():
+    os.system("pkill fim; fim -a -q data/images/*.jpg")
+    currentMode = "Albums"
 
 def rotary_switch_interrupt(gpio,level,tim):
         time.sleep(0.3)
@@ -79,8 +90,10 @@ def rotary_switch_interrupt(gpio,level,tim):
                 logger.debug("Short press")
                 return
         logger.debug("Long press")
-        getDiscogsLibrary()
-
+        if currentMode == "Albums": 
+            showSettings()
+        elif currentMode == "Settings":
+            showAlbumSelection()
 
 # Callback fn:
 def rotary_interrupt(gpio,level,tim):
@@ -149,7 +162,8 @@ def main():
             quit()
         
     
-
+    global currentMode
+    currentMode = "Settings"
  
 
     #Check if last.fm connection is valid
@@ -164,8 +178,8 @@ def main():
     pi.callback(Enc_DT, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_CLK, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_SW, pigpio.FALLING_EDGE, rotary_switch_interrupt)
-    #os.system("fim -a -q data/images/*.jpg") #Should create this from variable
-    os.system("fim -a -q resources/menus/start/*.png")
+    
+    showSettings()
 
     while True:
             time.sleep(10)
