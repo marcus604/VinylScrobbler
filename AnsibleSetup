@@ -1,0 +1,89 @@
+---
+  - name: "Setup system and dependencies for VinylScrobbler"
+    hosts: VinylScrobbler
+    vars:
+  
+    become: yes
+
+    tasks:
+
+      - name: Clone display drivers
+        git:
+          repo: https://github.com/juj/fbcp-ili9341
+          dest: /home/pi/Drivers/
+          clone: yes
+          update: yes
+        register: gitDisplay
+
+      - name: Install cmake
+        apt: 
+          state: present
+          pkg: cmake
+
+      - name: Make build directory
+        file:
+          state: directory
+          path: /home/pi/Drivers/Build
+        when: gitDisplay.changed
+      
+      - name: Build display driver config
+        shell: cmake -DILI9340=ON -DGPIO_TFT_DATA_CONTROL=25 -DGPIO_TFT_RESET_PIN=24 -DSPI_BUS_CLOCK_DIVISOR=6 -DSTATISTICS=0 -DSINGLE_CORE_BOARD=OFF -DARMV8A=ON ..
+        args:
+          chdir: /home/pi/Drivers/Build/
+        when: gitDisplay.changed
+
+      - name: Make display driver 
+        make: 
+          chdir: /home/pi/Drivers/Build/
+        when: gitDisplay.changed
+      
+      - name: Set driver to autolaunch
+        lineinfile:
+          dest: /etc/rc.local
+          state: present
+          insertbefore: '^exit 0'
+          line: sudo /home/pi/Drivers/Build/fbcp-ili9341 &
+
+      - name: Remove dtoverlay from config
+        lineinfile:
+          dest: /boot/config.txt
+          state: absent
+          regexp: '^dtoverlay=.+$'
+
+      - name: Change hdmi group
+        lineinfile:
+          dest: /boot/config.txt
+          state: present
+          regexp: '^#hdmi_group=.+$'
+          line: hdmi_group=2
+        
+      - name: Change hdmi mode
+        lineinfile:
+          dest: /boot/config.txt
+          state: present
+          regexp: '^#hdmi_mode=.+$'
+          line: hdmi_mode=87
+        
+      - name: Add HDMI dimensions
+        lineinfile:
+          dest: /boot/config.txt
+          state: present
+          insertafter: '^hdmi_mode=.+$'
+          line: hdmi_cvt=320 240 60 1 0 0 0
+
+      - name: Add HDMI hotplug
+        lineinfile:
+          dest: /boot/config.txt
+          state: present
+          insertafter: '^hdmi_mode=.+$'
+          line: hdmi_force_hotplug=1
+      
+      - name: Restart system
+        reboot:
+      
+      
+          
+          
+      
+
+          

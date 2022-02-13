@@ -21,6 +21,8 @@ hdmi_cvt=320 240 60 1 0 0 0
 hdmi_force_hotplug=1
 ```
 
+Remove any lines starting with ```dtoverlay``` from /boot/config.txt
+
 Set the display driver to launch on startup
 Edit /etc/rtc.local in sudo mode and add
 
@@ -32,7 +34,11 @@ Append to /boot/cmdline.txt (Requires a reboot)
 
 ```vt.global_cursor_default=0```
 
+### Ansible Setup
 
+Instead of manually setting up the display you can use the included Ansible playbook to setup the display. If using a different display you will need to change some things
+
+```ansible-playbook AnsibleSetup.yml```
 
 ## Install Dependencies
 
