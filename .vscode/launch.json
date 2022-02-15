@@ -7,12 +7,10 @@
         {
             "name": "Python: Current File",
             "type": "python",
-            "python": "/usr/bin/python",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-v"],
-            "sudo": true
+            "args": ["-v"]
         }
     ]
 }
