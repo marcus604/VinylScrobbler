@@ -1,16 +1,20 @@
 from configparser import ConfigParser
+from lib2to3.pgen2.pgen import PgenGrammar
 from pathlib import Path
 import urllib.request
 import sys
 import json
 import shutil
 import pigpio, time, os
-import keyboard
+#import keyboard
 import threading
 
 
 
 from PIL import Image
+import pygame as pg
+from pygame.locals import *
+
 
 
 #Custom
@@ -43,10 +47,13 @@ last_DT = 1
 last_CLK = 1
 last_gpio = 0
 
-menuSize = 4
+recordSize = 0
 counter = 1
 
+WINSIZE = [320, 240]
 
+UPDATE = pg.USEREVENT + 1
+UPDATE_event = pg.event.Event(UPDATE)
 
 
 def logLaunch():
@@ -75,12 +82,12 @@ def toggleBacklight():
 
 
 def showSettings():
-    os.system("pkill fim")
-    os.system("fim -a -q resources/menus/settings/*.png")
+    #os.system("pkill fim")
+    #os.system("fim -a -q resources/menus/settings/*.png")
     currentMode = "Settings"
 
 def showAlbumSelection():
-    os.system("pkill fim; fim -a -q data/images/*.jpg")
+    #os.system("pkill fim; fim -a -q data/images/*.jpg")
     currentMode = "Albums"
 
 def rotary_switch_interrupt(gpio,level,tim):
@@ -90,14 +97,17 @@ def rotary_switch_interrupt(gpio,level,tim):
                 logger.debug("Short press")
                 return
         logger.debug("Long press")
-        if currentMode == "Albums": 
-            showSettings()
-        elif currentMode == "Settings":
-            showAlbumSelection()
+        # Step 1 – Convert event into event datatype of pygame 
+        
+        pg.event.post(UPDATE_event)    # event_name as parameter
+        #if currentMode == "Albums": 
+        #    showSettings()
+        #elif currentMode == "Settings":
+        #    showAlbumSelection()
 
 # Callback fn:
 def rotary_interrupt(gpio,level,tim):
-        global last_DT, last_CLK,  last_gpio, counter
+        global last_DT, last_CLK,  last_gpio, counter, recordSize
 
         if gpio == Enc_DT:
                 last_DT = level
@@ -109,17 +119,16 @@ def rotary_interrupt(gpio,level,tim):
                 if gpio == Enc_DT and level == 1:
                         if last_CLK == 1:
                                 counter += 1
-                                if counter > menuSize:
+                                if counter > recordSize:
                                     counter = 1
-                                keyboard.press_and_release('n')
                                 logger.debug("UP to {}".format(counter))
                 elif gpio == Enc_CLK and level == 1:
                         if last_DT == 1:
                                 counter -= 1
                                 if counter < 1:
-                                    counter = menuSize
-                                keyboard.press_and_release('b')
+                                    counter = recordSize
                                 logger.debug("DOWN to {}".format(counter))
+                pg.event.post(UPDATE_event)
 
 
 
@@ -169,7 +178,7 @@ def main():
     #Check if last.fm connection is valid
     
     global pi
-    counter = 100
+    
     pi = pigpio.pi()                # init pigpio deamon
     pi.write(DISP_BL, 1)
     pi.set_mode(Enc_DT, pigpio.INPUT)
@@ -179,11 +188,60 @@ def main():
     pi.callback(Enc_CLK, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_SW, pigpio.FALLING_EDGE, rotary_switch_interrupt)
     
-    showSettings()
+    pg.init()
+    pg.mouse.set_visible(False)
+    screen = pg.display.set_mode(WINSIZE)
+    black = 20, 20, 40
+    screen.fill(black)
+
+    path = 'data/images/'
+
+    imageFiles = os.listdir(path)
+
+    records = []
+
+    for imageFile in imageFiles:
+        records.append(imageFile)
+        #fullPath = ("{}{}".format(path, imageFile))
+        #print(fullPath)
+        #image = pg.image.load(fullPath)
+        #screen.blit(image, (40, 0))
+    
+        #pg.display.update()
+        #time.sleep(0.5)
+    
+    
+    global counter
+    global recordSize
+    recordSize = len(records) - 1
+    counter = int(recordSize / 2)
+    currentRecord = records[counter]
+
+    fullPath = ("{}{}".format(path, currentRecord))
+
+    image = pg.image.load(fullPath)
+
+    screen.blit(image, (40, 0))
+    
+    pg.display.update()
+
+    #showSettings()
+
 
     while True:
-            time.sleep(10)
-            toggleBacklight()
+        #toggleBacklight()
+        for event in pg.event.get():
+            if event.type == QUIT:
+                pg.quit()
+                sys.exit()
+            if event.type == UPDATE:
+                #logger.debug("pygame update to record {}".format(counter))
+                currentRecord = records[counter]
+                fullPath = ("{}{}".format(path, currentRecord))
+                image = pg.image.load(fullPath)
+                screen.blit(image, (40, 0))
+        pg.display.update()
+
 
 ##################################################
 #####################Launcher#####################
