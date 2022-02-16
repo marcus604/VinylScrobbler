@@ -1,21 +1,9 @@
 from configparser import ConfigParser
-from lib2to3.pgen2.pgen import PgenGrammar
-from pathlib import Path
-import urllib.request
 import sys
-import json
 import shutil
 import pigpio, time, os
-#import keyboard
-import threading
-
-
-
-from PIL import Image
 import pygame as pg
 from pygame.locals import *
-
-
 
 #Custom
 from Classes import *
@@ -27,8 +15,6 @@ VERSION = 0.2
 DATA_DIR_NAME = "data"
 IMAGE_DIR_NAME = "images"
 COLLECTION_FILE_NAME = "userCollection.json"
-
-
 
 logger = getLogger(__name__, "logs/{}.log".format(PROGRAM_NAME))
 
@@ -47,13 +33,21 @@ last_DT = 1
 last_CLK = 1
 last_gpio = 0
 
-recordSize = 0
+numOfRecords = 0
 counter = 1
 
 WINSIZE = [320, 240]
 
-UPDATE = pg.USEREVENT + 1
-UPDATE_event = pg.event.Event(UPDATE)
+#Pygame Events
+ROTARY_UP = pg.USEREVENT + 1
+ROTARY_DOWN = pg.USEREVENT + 2
+ROTARY_SHORT = pg.USEREVENT + 3
+ROTARY_LONG = pg.USEREVENT + 4
+
+ROTARY_UP_event = pg.event.Event(ROTARY_UP)
+ROTARY_DOWN_event = pg.event.Event(ROTARY_DOWN)
+ROTARY_SHORT_event = pg.event.Event(ROTARY_SHORT)
+ROTARY_LONG_event = pg.event.Event(ROTARY_LONG)
 
 
 def logLaunch():
@@ -62,14 +56,6 @@ def logLaunch():
         logger.info("Read Only Mode".center(40, "="))
     if MODE_VERBOSE:
         logger.info("Verbose Logging".center(40, "="))
-
-
-def deleteDirectory(dir):
-    shutil.rmtree(dir)
-    logger.debug("Deleting directory '{}'".format(dir))
-    
-
-
 
 def toggleBacklight():
     try:
@@ -81,33 +67,20 @@ def toggleBacklight():
         logger.debug("backlight error: {}".format(e))
 
 
-def showSettings():
-    #os.system("pkill fim")
-    #os.system("fim -a -q resources/menus/settings/*.png")
-    currentMode = "Settings"
-
-def showAlbumSelection():
-    #os.system("pkill fim; fim -a -q data/images/*.jpg")
-    currentMode = "Albums"
-
 def rotary_switch_interrupt(gpio,level,tim):
         time.sleep(0.3)
-        logger.info("Count is: {}".format(counter))
+        logger.debug("Count is: {}".format(counter))
         if(pi.read(Enc_SW) == 1):
                 logger.debug("Short press")
+                pg.event.post(ROTARY_SHORT_event)
                 return
         logger.debug("Long press")
-        # Step 1 – Convert event into event datatype of pygame 
+        pg.event.post(ROTARY_LONG_event)    
         
-        pg.event.post(UPDATE_event)    # event_name as parameter
-        #if currentMode == "Albums": 
-        #    showSettings()
-        #elif currentMode == "Settings":
-        #    showAlbumSelection()
 
 # Callback fn:
 def rotary_interrupt(gpio,level,tim):
-        global last_DT, last_CLK,  last_gpio, counter, recordSize
+        global last_DT, last_CLK,  last_gpio, counter, numOfRecords
 
         if gpio == Enc_DT:
                 last_DT = level
@@ -119,16 +92,18 @@ def rotary_interrupt(gpio,level,tim):
                 if gpio == Enc_DT and level == 1:
                         if last_CLK == 1:
                                 counter += 1
-                                if counter > recordSize:
+                                if counter > numOfRecords:
                                     counter = 1
                                 logger.debug("UP to {}".format(counter))
+                                pg.event.post(ROTARY_UP_event)
                 elif gpio == Enc_CLK and level == 1:
                         if last_DT == 1:
                                 counter -= 1
                                 if counter < 1:
-                                    counter = recordSize
+                                    counter = numOfRecords
                                 logger.debug("DOWN to {}".format(counter))
-                pg.event.post(UPDATE_event)
+                                pg.event.post(ROTARY_DOWN_event)
+                
 
 
 
@@ -165,16 +140,11 @@ def main():
             discogs.createLibraryDir()
             discogs.connect()
             discogs.fullLibraryUpdate()
-            #Display loading menu
         except (DiscogsConnectError, DiscogsCredentialError) as e:
             logger.error(e)
             quit()
         
     
-    global currentMode
-    currentMode = "Settings"
- 
-
     #Check if last.fm connection is valid
     
     global pi
@@ -201,20 +171,12 @@ def main():
     records = []
 
     for imageFile in imageFiles:
-        records.append(imageFile)
-        #fullPath = ("{}{}".format(path, imageFile))
-        #print(fullPath)
-        #image = pg.image.load(fullPath)
-        #screen.blit(image, (40, 0))
-    
-        #pg.display.update()
-        #time.sleep(0.5)
-    
+        records.append(imageFile)    
     
     global counter
-    global recordSize
-    recordSize = len(records) - 1
-    counter = int(recordSize / 2)
+    global numOfRecords
+    numOfRecords = len(records) - 1
+    counter = int(numOfRecords / 2)
     currentRecord = records[counter]
 
     fullPath = ("{}{}".format(path, currentRecord))
@@ -225,8 +187,6 @@ def main():
     
     pg.display.update()
 
-    #showSettings()
-
 
     while True:
         #toggleBacklight()
@@ -234,12 +194,16 @@ def main():
             if event.type == QUIT:
                 pg.quit()
                 sys.exit()
-            if event.type == UPDATE:
-                #logger.debug("pygame update to record {}".format(counter))
+            elif event.type == ROTARY_UP or event.type == ROTARY_DOWN:
                 currentRecord = records[counter]
                 fullPath = ("{}{}".format(path, currentRecord))
                 image = pg.image.load(fullPath)
                 screen.blit(image, (40, 0))
+            elif event.type == ROTARY_SHORT:
+                logger.debug("Short press PG")
+            elif event.type == ROTARY_LONG:
+                logger.debug("long press PG")
+            
         pg.display.update()
 
 
