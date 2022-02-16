@@ -69,12 +69,9 @@ def toggleBacklight():
 
 def rotary_switch_interrupt(gpio,level,tim):
         time.sleep(0.3)
-        logger.debug("Count is: {}".format(counter))
         if(pi.read(Enc_SW) == 1):
-                logger.debug("Short press")
                 pg.event.post(ROTARY_SHORT_event)
                 return
-        logger.debug("Long press")
         pg.event.post(ROTARY_LONG_event)    
         
 
@@ -154,9 +151,11 @@ def main():
     pi.set_mode(Enc_DT, pigpio.INPUT)
     pi.set_mode(Enc_CLK, pigpio.INPUT)
     pi.set_mode(Enc_SW, pigpio.INPUT)
+    pi.set_glitch_filter(Enc_SW, 1000)
     pi.callback(Enc_DT, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_CLK, pigpio.EITHER_EDGE, rotary_interrupt)
     pi.callback(Enc_SW, pigpio.FALLING_EDGE, rotary_switch_interrupt)
+    
     
     pg.init()
     pg.mouse.set_visible(False)
