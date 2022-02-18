@@ -139,7 +139,7 @@ def main():
         logger)
 
     try:
-        discogs.getLibrary()
+        discogsLibrary = discogs.getLibrary()
     except DiscogsLibraryError as e:
         logger.debug(e)
         try:
@@ -172,6 +172,32 @@ def main():
     black = 20, 20, 40
     screen.fill(black)
 
+    #Settings Menu
+    menu = pygame_menu.Menu(
+        'Settings', 320, 240,
+        theme=pygame_menu.themes.THEME_DARK,
+        mouse_enabled=False,
+        mouse_visible=False,
+        )   
+    
+    menu.add.button('Records', logLaunch)
+    menu.add.button('Sync', logLaunch)
+    menu.add.button('Quit', pygame_menu.events.EXIT)
+
+    #menu.mainloop(screen)
+    # while True:
+        
+    #     events = pg.event.get()
+    #     for event in events:
+    #         if event.type == pg.QUIT:
+    #             exit()
+
+    #     if menu.is_enabled():
+    #         menu.update(events)
+    #         menu.draw(screen)
+
+    #     pg.display.update()
+
     path = 'data/images/'
 
     imageFiles = os.listdir(path)
@@ -185,44 +211,20 @@ def main():
     global numOfRecords
     numOfRecords = len(records) - 1
     counter = int(numOfRecords / 2)
-    currentRecord = records[counter]
-
-
-    menu = pygame_menu.Menu(
-        'Settings', 320, 240,
-        theme=pygame_menu.themes.THEME_DARK,
-        mouse_enabled=False,
-        mouse_visible=False,
-        )   
     
-    menu.add.button('Records', logLaunch)
-    menu.add.button('Sync', logLaunch)
-    menu.add.button('Quit', pygame_menu.events.EXIT)
-    fullPath = ("{}{}".format(path, currentRecord))
+    titleSortedRecords = sorted(discogsLibrary.items(), key=lambda items: items[1]['title'])
+    sortedRecords = sorted(titleSortedRecords, key=lambda items: items[1]['artist'])
 
+    currentRecordID = sortedRecords[counter][0]
 
-    while True:
-        
-        events = pg.event.get()
-        for event in events:
-            if event.type == pg.QUIT:
-                exit()
+    fullPath = ("{}{}.jpg".format(path, currentRecordID))
 
-        if menu.is_enabled():
-            menu.update(events)
-            menu.draw(screen)
+    image = pg.image.load(fullPath)
 
-        pg.display.update()
-
-   
-
-
-
-    #image = pg.image.load(fullPath)
-
-    #screen.blit(image, (40, 0))
+    screen.blit(image, (40, 0))
     
-    #pg.display.update()
+    pg.display.update()
+
 
 
     while True:
@@ -232,12 +234,18 @@ def main():
                 pg.quit()
                 sys.exit()
             elif event.type == ROTARY_UP or event.type == ROTARY_DOWN:
-                currentRecord = records[counter]
-                fullPath = ("{}{}".format(path, currentRecord))
+                currentRecordID = sortedRecords[counter][0]
+                fullPath = ("{}{}.jpg".format(path, currentRecordID))
                 image = pg.image.load(fullPath)
                 screen.blit(image, (40, 0))
             elif event.type == ROTARY_SHORT:
                 logger.debug("Short press PG")
+                logger.debug("Record ID: {}".format(currentRecordID))
+                try:
+                    logger.debug("Record Name: {}".format(discogsLibrary[currentRecordID]))
+
+                except KeyError:
+                    logger.error("No record found with ID: {}".format(currentRecordID))
             elif event.type == ROTARY_LONG:
                 logger.debug("long press PG")
             
