@@ -4,6 +4,8 @@ import shutil
 import pigpio, time, os
 import pygame as pg
 from pygame.locals import *
+import pygame_menu
+
 
 #Custom
 from Classes import *
@@ -50,6 +52,8 @@ ROTARY_SHORT_event = pg.event.Event(ROTARY_SHORT)
 ROTARY_LONG_event = pg.event.Event(ROTARY_LONG)
 
 
+
+
 def logLaunch():
     logger.info("Starting {}".center(40, "=").format(PROGRAM_NAME))
     if MODE_READ_ONLY:
@@ -71,6 +75,7 @@ def rotary_switch_interrupt(gpio,level,tim):
         time.sleep(0.3)
         if(pi.read(Enc_SW) == 1):
                 pg.event.post(ROTARY_SHORT_event)
+                pg.event.post(pg.event.Event(pg.KEYDOWN, key=pg.K_RETURN, test=True))
                 return
         pg.event.post(ROTARY_LONG_event)    
         
@@ -92,6 +97,8 @@ def rotary_interrupt(gpio,level,tim):
                                 if counter > numOfRecords:
                                     counter = 1
                                 logger.debug("UP to {}".format(counter))
+                                #press("up")
+                                pg.event.post(pg.event.Event(pg.KEYDOWN, key=pg.K_DOWN, test=True))
                                 pg.event.post(ROTARY_UP_event)
                 elif gpio == Enc_CLK and level == 1:
                         if last_DT == 1:
@@ -99,6 +106,8 @@ def rotary_interrupt(gpio,level,tim):
                                 if counter < 1:
                                     counter = numOfRecords
                                 logger.debug("DOWN to {}".format(counter))
+                                #press("down")
+                                pg.event.post(pg.event.Event(pg.KEYDOWN, key=pg.K_UP, test=True))
                                 pg.event.post(ROTARY_DOWN_event)
                 
 
@@ -178,13 +187,42 @@ def main():
     counter = int(numOfRecords / 2)
     currentRecord = records[counter]
 
+
+    menu = pygame_menu.Menu(
+        'Settings', 320, 240,
+        theme=pygame_menu.themes.THEME_DARK,
+        mouse_enabled=False,
+        mouse_visible=False,
+        )   
+    
+    menu.add.button('Records', logLaunch)
+    menu.add.button('Sync', logLaunch)
+    menu.add.button('Quit', pygame_menu.events.EXIT)
     fullPath = ("{}{}".format(path, currentRecord))
 
-    image = pg.image.load(fullPath)
 
-    screen.blit(image, (40, 0))
+    while True:
+        
+        events = pg.event.get()
+        for event in events:
+            if event.type == pg.QUIT:
+                exit()
+
+        if menu.is_enabled():
+            menu.update(events)
+            menu.draw(screen)
+
+        pg.display.update()
+
+   
+
+
+
+    #image = pg.image.load(fullPath)
+
+    #screen.blit(image, (40, 0))
     
-    pg.display.update()
+    #pg.display.update()
 
 
     while True:
