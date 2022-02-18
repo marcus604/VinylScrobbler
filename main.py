@@ -35,9 +35,6 @@ last_DT = 1
 last_CLK = 1
 last_gpio = 0
 
-numOfRecords = 0
-counter = 1
-
 WINSIZE = [320, 240]
 
 #Pygame Events
@@ -50,6 +47,8 @@ ROTARY_UP_event = pg.event.Event(ROTARY_UP)
 ROTARY_DOWN_event = pg.event.Event(ROTARY_DOWN)
 ROTARY_SHORT_event = pg.event.Event(ROTARY_SHORT)
 ROTARY_LONG_event = pg.event.Event(ROTARY_LONG)
+
+path = 'data/images/'
 
 
 
@@ -82,36 +81,53 @@ def rotary_switch_interrupt(gpio,level,tim):
 
 # Callback fn:
 def rotary_interrupt(gpio,level,tim):
-        global last_DT, last_CLK,  last_gpio, counter, numOfRecords
+        global last_DT, last_CLK,  last_gpio
 
         if gpio == Enc_DT:
                 last_DT = level
         else:
                 last_CLK = level
 
-        if gpio != last_gpio:                                   # debounce
+        if gpio != last_gpio:                                   
                 last_gpio = gpio
                 if gpio == Enc_DT and level == 1:
                         if last_CLK == 1:
-                                counter += 1
-                                if counter > numOfRecords:
-                                    counter = 1
-                                logger.debug("UP to {}".format(counter))
-                                #press("up")
                                 pg.event.post(pg.event.Event(pg.KEYDOWN, key=pg.K_DOWN, test=True))
                                 pg.event.post(ROTARY_UP_event)
                 elif gpio == Enc_CLK and level == 1:
                         if last_DT == 1:
-                                counter -= 1
-                                if counter < 1:
-                                    counter = numOfRecords
-                                logger.debug("DOWN to {}".format(counter))
-                                #press("down")
                                 pg.event.post(pg.event.Event(pg.KEYDOWN, key=pg.K_UP, test=True))
                                 pg.event.post(ROTARY_DOWN_event)
                 
 
+def showSettingsMenu(screen):
+    #Settings Menu
+    menu = pygame_menu.Menu(
+        'Settings', 320, 240,
+        theme=pygame_menu.themes.THEME_DARK,
+        mouse_enabled=False,
+        mouse_visible=False,
+        onclose=pygame_menu.events.CLOSE,
+        )   
+    
+    menu.add.button('Records', pygame_menu.events.CLOSE)
+    menu.add.button('Sync', pygame_menu.events.BACK) #Ask partial or full
+    menu.add.button('Quit', pygame_menu.events.EXIT)
 
+    menu.mainloop(screen)
+
+def resetScreen(screen):
+    black = 20, 20, 40
+    screen.fill(black)
+
+def showRecordOnScreen(records, counter, pg, screen):
+        currentRecordID = records[counter][0]
+
+        fullPath = ("{}{}.jpg".format(path, currentRecordID))
+
+        image = pg.image.load(fullPath)
+
+        screen.blit(image, (40, 0))
 
 ##################################################
 #################Main Application#################
@@ -169,59 +185,17 @@ def main():
     pg.init()
     pg.mouse.set_visible(False)
     screen = pg.display.set_mode(WINSIZE)
-    black = 20, 20, 40
-    screen.fill(black)
+    resetScreen(screen)
 
-    #Settings Menu
-    menu = pygame_menu.Menu(
-        'Settings', 320, 240,
-        theme=pygame_menu.themes.THEME_DARK,
-        mouse_enabled=False,
-        mouse_visible=False,
-        )   
-    
-    menu.add.button('Records', logLaunch)
-    menu.add.button('Sync', logLaunch)
-    menu.add.button('Quit', pygame_menu.events.EXIT)
-
-    #menu.mainloop(screen)
-    # while True:
-        
-    #     events = pg.event.get()
-    #     for event in events:
-    #         if event.type == pg.QUIT:
-    #             exit()
-
-    #     if menu.is_enabled():
-    #         menu.update(events)
-    #         menu.draw(screen)
-
-    #     pg.display.update()
-
-    path = 'data/images/'
-
-    imageFiles = os.listdir(path)
-
-    records = []
-
-    for imageFile in imageFiles:
-        records.append(imageFile)    
-    
-    global counter
-    global numOfRecords
-    numOfRecords = len(records) - 1
+    numOfRecords = len(discogsLibrary) - 1
+    #Start in the middle of the library
     counter = int(numOfRecords / 2)
     
+    #Sort records by title then artist
     titleSortedRecords = sorted(discogsLibrary.items(), key=lambda items: items[1]['title'])
     sortedRecords = sorted(titleSortedRecords, key=lambda items: items[1]['artist'])
 
-    currentRecordID = sortedRecords[counter][0]
-
-    fullPath = ("{}{}.jpg".format(path, currentRecordID))
-
-    image = pg.image.load(fullPath)
-
-    screen.blit(image, (40, 0))
+    showRecordOnScreen(sortedRecords, counter, pg, screen)
     
     pg.display.update()
 
@@ -234,12 +208,19 @@ def main():
                 pg.quit()
                 sys.exit()
             elif event.type == ROTARY_UP or event.type == ROTARY_DOWN:
-                currentRecordID = sortedRecords[counter][0]
-                fullPath = ("{}{}.jpg".format(path, currentRecordID))
-                image = pg.image.load(fullPath)
-                screen.blit(image, (40, 0))
+                if event.type == ROTARY_UP: 
+                    counter += 1
+                    if counter > numOfRecords:
+                        counter = 0
+                else:
+                    counter -= 1
+                    if counter < 0:
+                        counter = numOfRecords
+                logger.debug("Count: {}".format(counter))
+                showRecordOnScreen(sortedRecords, counter, pg, screen)
             elif event.type == ROTARY_SHORT:
                 logger.debug("Short press PG")
+                currentRecordID = sortedRecords[counter][0]
                 logger.debug("Record ID: {}".format(currentRecordID))
                 try:
                     logger.debug("Record Name: {}".format(discogsLibrary[currentRecordID]))
@@ -248,7 +229,9 @@ def main():
                     logger.error("No record found with ID: {}".format(currentRecordID))
             elif event.type == ROTARY_LONG:
                 logger.debug("long press PG")
-            
+                showSettingsMenu(screen)
+                resetScreen(screen)
+                showRecordOnScreen(sortedRecords, counter, pg, screen)
         pg.display.update()
 
 
