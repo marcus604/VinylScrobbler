@@ -1,6 +1,8 @@
 import json
+from urllib.error import URLError
 import urllib.request
 from pathlib import Path
+import time
 
 import discogs_client
 from PIL import Image
@@ -78,6 +80,10 @@ class Discogs:
     def fullLibraryUpdate(self):
         self.getRecordCollection(self.TYPE_FULL)
         self.logger.info("Full discogs library updated")
+
+    def partialLibraryUpdate(self):
+        self.getRecordCollection(self.TYPE_PARTIAL)
+        self.logger.info("Partial discogs library updated")
             
     
     def saveToJSON(self, filename, data):
@@ -93,7 +99,19 @@ class Discogs:
     def saveAlbumArtwork(self, url, id, dest):
         filename = "{}/{}.jpg".format(dest, id)
 
-        urllib.request.urlretrieve(url, filename)
+        timesRetried = 0
+
+        while True:
+            try:
+                urllib.request.urlretrieve(url, filename)
+            except URLError:
+                if timesRetried >= 3:
+                    self.logger.error("Could not download image: {}".format(url))
+                    break
+                
+                else:
+                    timesRetried += 1
+                    time.sleep(5)
 
         self.resizeImage(filename)
 
@@ -115,7 +133,7 @@ class Discogs:
         count = 0
 
         if type is self.TYPE_PARTIAL:
-            currentCollection = self.getCurrentCollection(self.collectionFileFQPath)
+            currentCollection = self.getLibrary()
 
         for collectionItem in collectionItems:
 
@@ -150,24 +168,13 @@ class Discogs:
 
 
         self.saveToJSON(self.collectionFileFQPath, userCollectionDict)
-        
-
-
-    
-
-
-
-    
-
-
 
     def getDiscogsUserCollection(self, user):
         #return user.collection_folders[1].releases #TODO remove: used for debugging
         return user.collection_folders[0].releases #0 is all folder
 
 
-    
-    def saveAlbumCollection(self, type, config):
+    def saveAlbumCollection(self, type):
 
         discogsClient = self.getDiscogsClient(self.programName, self.version, self.token)
         

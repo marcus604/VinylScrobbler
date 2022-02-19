@@ -111,8 +111,24 @@ def showSettingsMenu(screen):
         )   
     
     menu.add.button('Records', pygame_menu.events.CLOSE)
-    menu.add.button('Sync', pygame_menu.events.BACK) #Ask partial or full
+    menu.add.button('Sync', showSyncMenu, screen)
     menu.add.button('Quit', pygame_menu.events.EXIT)
+
+    menu.mainloop(screen)
+
+def showSyncMenu(screen):
+    #Settings Menu
+    menu = pygame_menu.Menu(
+        'Settings', 320, 240,
+        theme=pygame_menu.themes.THEME_DARK,
+        mouse_enabled=False,
+        mouse_visible=False,
+        onclose=pygame_menu.events.CLOSE,
+        )  
+
+    menu.add.button('Full', discogs.fullLibraryUpdate)
+    menu.add.button('Partial', discogs.partialLibraryUpdate) #Ask partial or full
+    menu.add.button('Back', pygame_menu.events.CLOSE) 
 
     menu.mainloop(screen)
 
@@ -143,7 +159,7 @@ def main():
     logger.debug("Loaded config")
 
     discogsConfig = config["DISCOGS"]
-
+    global discogs
     discogs = Discogs(
         discogsConfig["TOKEN"],
         discogsConfig["USERNAME"],
@@ -154,7 +170,12 @@ def main():
         VERSION,
         logger)
 
+    now = time.time()
+    done = time.time()
+    print("Took {}".format(done - now))
+    now = time.time()
     try:
+        discogs.connect()
         discogsLibrary = discogs.getLibrary()
     except DiscogsLibraryError as e:
         logger.debug(e)
@@ -165,6 +186,9 @@ def main():
         except (DiscogsConnectError, DiscogsCredentialError) as e:
             logger.error(e)
             quit()
+
+    done = time.time()
+    print("Took {}".format(done - now))
         
     
     #Check if last.fm connection is valid
