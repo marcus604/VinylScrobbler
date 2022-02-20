@@ -11,7 +11,7 @@ Display build options will differ depending on which Raspberry Pi board and disp
 Using display drivers [fbcp-ili9341](https://github.com/juj/fbcp-ili9341) - follow instructions on page for specific steps
 
 Build Options for Raspberry Pi Zero 2 with Adafruit 240x320 2.2" TFT w/ILI9340C
-```-DILI9340=ON -DGPIO_TFT_DATA_CONTROL=25 -DGPIO_TFT_RESET_PIN=24 -DSPI_BUS_CLOCK_DIVISOR=6 -DSTATISTICS=0 -DSINGLE_CORE_BOARD=OFF -DARMV8A=ON ..```
+```-DILI9340=ON -DGPIO_TFT_DATA_CONTROL=25 -DGPIO_TFT_RESET_PIN=24 -DSPI_BUS_CLOCK_DIVISOR=12 -DSTATISTICS=0 -DSINGLE_CORE_BOARD=OFF -DARMV8A=ON ..```
 
 Add the lines to /boot/config.txt
 ```
@@ -28,35 +28,35 @@ Edit /etc/rtc.local in sudo mode and add
 
 ```sudo /path/to/fbcp-ili9341/build/fbcp-ili9341 &```
 
-### Stop cursor blinking
-
-Append to /boot/cmdline.txt (Requires a reboot)
-
-```vt.global_cursor_default=0```
-
 ### Ansible Setup
 
 Instead of manually setting up the display you can use the included Ansible playbook to setup the display. If using a different display you will need to change some things
 
-```ansible-playbook AnsibleSetup.yml```
+```ansible-playbook DisplaySetup.yml```
 
 ## Install Dependencies
 
 ### [System]
 ```
 sudo apt install python3-pip
-sudo apt install python3-pigpio
-sudo systemctl enable pigpiod
-sudo apt install fim
-sudo apt install libopenjp2-7
+sudo apt install python3-venv
+sudo apt install pigpio
+sudo apt install python3-sdl2
+sudo apt install zlib1g-dev
+sudo apt install libjpeg-dev
+
 ```
+
+Set pigpio to start automatically
+
+```sudo systemctl enable pigpiod```
+
 ### [Python]
 
-Due to requirements of keyboard libary requiring root, other packages must be installed as root; This is normally (and still kind of is) very bad practice and should be avoided. **I would recommend not to have anything else running on this pi to lower this risk.**
+
 ```
-sudo pip install keyboard
-sudo pip install python3-discogs-client
-sudo pip install Pillow
+poetry run python -m pip install pygame
+poetry install
 ```
 
 Install

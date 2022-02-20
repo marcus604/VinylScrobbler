@@ -1,0 +1,94 @@
+---
+  - name: "Setup SSH access and harden system"
+    hosts: rpis
+    vars:
+      packages:
+        - ufw
+        - fail2ban
+        - unattended-upgrades
+        - git
+      SSH_PORT: 22
+      
+
+    become: yes
+
+    tasks:
+
+      - name: "Change user password"
+        user:
+          name: '{{ ansible_user }}'
+          password: '{{ password }}'
+
+      - name: "Change hostname"
+        hostname:
+          name: '{{ host_name }}'
+
+      - name: "Update apt package cache"
+        apt:
+          update_cache: yes
+          cache_valid_time: 3600
+      
+      - name: "Upgrade apt packages"
+        apt:
+          upgrade: safe
+      
+      - name: "Install initial packages"
+        apt: 
+          state: present
+          pkg: '{{ item }}'
+        with_items:
+          - '{{ packages }}'
+
+      - name: "Setup ufw"
+        ufw:
+          state: enabled
+          policy: deny
+
+      - name: "Allow ssh traffic"
+        ufw:
+          rule: allow
+          port: '{{ SSH_PORT }}'
+          proto: tcp
+
+      - name: Set Boot behaviour
+        shell: "raspi-config nonint do_boot_behaviour {{ boot_behaviour }}"
+
+      - name: Change locale
+        shell: "raspi-config nonint do_change_locale {{ system_locale }}"
+
+      - name: Change timezone
+        shell: "raspi-config nonint do_change_timezone {{ system_timezone }}"
+
+      - name: Change keyboard layout
+        shell: "raspi-config nonint do_configure_keyboard {{ system_xkblayout }}"
+
+      - name: Expand Filesystem
+        shell: "raspi-config nonint do_expand_rootfs"
+      
+      - name: Enable Overscan
+        shell: "raspi-config nonint do_overscan 1"
+
+      - name: Set GPU memory split
+        shell: "raspi-config nonint do_memory_split {{ system_memorySplit }}"
+        
+      - name: Change ssh port
+        lineinfile:
+          dest: /etc/ssh/sshd_config
+          regexp: "^Ports"
+          line: "Port {{ SSH_PORT }}"
+          state: present
+        
+      - name: Disallow password authentication
+        lineinfile:
+          dest: /etc/ssh/sshd_config
+          regexp: "^PasswordAuthentication"
+          line: "PasswordAuthentication no"
+          state: present
+        
+      - name: Restart system
+        reboot:
+
+
+   
+
+         

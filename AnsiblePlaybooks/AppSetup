@@ -1,0 +1,89 @@
+---
+  - name: "Setup dependencies and install VinylScrobbler"
+    hosts: VinylScrobbler
+    vars:
+      apt_packages:
+        - python3-pip
+        - pigpio
+        #Poetry dependencies
+        - python3-venv 
+        #Pygame dependencies
+        - python3-sdl2
+        #Pillow dependencies
+        - zlib1g-dev
+        - libjpeg-dev
+            
+      DISCOGS_KEY: lNKdVbPSIkiluPDwbYwCtmsBcxKDWlMnxZCRYkvI
+      DISCOGS_USER: marcusl
+
+    tasks:
+      - name: "Install apt packages"
+        apt: 
+          state: present
+          pkg: '{{ item }}'
+        with_items:
+          - '{{ apt_packages }}'
+        become: yes
+
+      - name: Enable and check that pigpiod is running
+        ansible.builtin.systemd:
+          name: pigpiod
+          state: started
+          enabled: yes
+        become: yes
+
+      - name: Install Poetry
+        shell: curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Add Poetry to PATH
+        shell: export PATH="/home/pi/.local/bin:$PATH"
+
+      - name: Clone repo
+        git:
+          repo: https://github.com/marcus604/VinylScrobbler
+          dest: /home/pi/VinylScrobbler
+          clone: yes
+          update: yes
+        register: repo
+
+      - name: Install pygame in Poetry environment
+        shell: poetry run python -m pip install pygame
+        environment:
+          PATH: /home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/games:/usr/games
+        args:
+          chdir: /home/pi/VinylScrobbler/
+
+      - name: Install python dependencies
+        shell: poetry install
+        environment:
+          PATH: /home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/games:/usr/games
+        args:
+          chdir: /home/pi/VinylScrobbler/
+
+      - name: Create config
+        copy:
+          src: /home/pi/VinylScrobbler/config.ini.example
+          dest: /home/pi/VinylScrobbler/config.ini
+          remote_src: yes
+        when: repo.changed
+
+      - name: Add Discogs key
+        lineinfile:
+          dest: /home/pi/VinylScrobbler/config.ini
+          state: present
+          insertafter: '^\[DISCOGS]$'
+          regexp: '^TOKEN = .*$'
+          line: TOKEN = {{ DISCOGS_KEY }}
+        when: repo.changed
+
+      - name: Add Discogs username
+        lineinfile:
+          dest: /home/pi/VinylScrobbler/config.ini
+          state: present
+          insertafter: ^TOKEN = .*$'
+          regexp: '^USERNAME = .*$'
+          line: USERNAME = {{ DISCOGS_USER }}
+        when: repo.changed
+      
+      #- name: Restart system
+      #  reboot:
