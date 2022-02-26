@@ -183,6 +183,7 @@ def main():
             discogs.createLibraryDir()
             discogs.connect()
             discogs.fullLibraryUpdate()
+            discogsLibrary = discogs.getLibrary()
         except (DiscogsConnectError, DiscogsCredentialError) as e:
             logger.error(e)
             quit()

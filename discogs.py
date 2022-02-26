@@ -3,6 +3,7 @@ from urllib.error import URLError
 import urllib.request
 from pathlib import Path
 import time
+from urllib import request
 
 import discogs_client
 from PIL import Image
@@ -92,26 +93,17 @@ class Discogs:
 
     #Needed to download images from discogs
     def generateURLOpener(self):
+        userAgentString = "{}/{}".format(self.programName, self.version)
+
         opener = urllib.request.build_opener()
-        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+        opener.addheaders = [('User-agent', userAgentString)]
         urllib.request.install_opener(opener)
         
     def saveAlbumArtwork(self, url, id, dest):
         filename = "{}/{}.jpg".format(dest, id)
 
         timesRetried = 0
-
-        while True:
-            try:
-                urllib.request.urlretrieve(url, filename)
-            except URLError:
-                if timesRetried >= 3:
-                    self.logger.error("Could not download image: {}".format(url))
-                    break
-                
-                else:
-                    timesRetried += 1
-                    time.sleep(5)
+        request.urlretrieve(url, filename)
 
         self.resizeImage(filename)
 
