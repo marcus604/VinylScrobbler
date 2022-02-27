@@ -1,3 +1,10 @@
 [DISCOGS]
-TOKEN = 
-USERNAME = 
+token = 
+username = 
+
+[LASTFM]
+key = 
+secret = 
+username = 
+password_hash = 
+

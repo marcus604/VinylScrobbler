@@ -11,6 +11,7 @@ pygame = "^2.1.2"
 Pillow = "^9.0.1"
 pigpio = "^1.78"
 pygame-menu = "^4.2.5"
+pylast = "^4.5.0"
 
 [tool.poetry.dev-dependencies]
 

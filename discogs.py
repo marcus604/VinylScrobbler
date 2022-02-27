@@ -24,7 +24,7 @@ class Discogs:
     TYPE_PARTIAL = "Partial"
     TYPE_FULL = "Full"
 
-    def __init__(self, token, username, dataDirName, imageDirName, collectionFileName, programName, version, logger):
+    def __init__(self, token, username, dataDirName, imageDirName, collectionFileName, programName, version, lastfm, logger):
         self.token = token
         self.username = username
         self.dataDirName = dataDirName
@@ -36,6 +36,7 @@ class Discogs:
         self.client = ""
         self.user = ""
         self.changed = False
+        self.lastfm = lastfm
 
         self.collectionFileFQPath = "{}/{}".format(dataDirName, collectionFileName)
         self.imageDirFQPath = "{}/{}".format(dataDirName, imageDirName)
@@ -140,6 +141,15 @@ class Discogs:
         img = img.resize((basewidth,hsize), Image.ANTIALIAS)
         img.save(imageFile)
 
+    #Converts string duration of m:ss to seconds int
+    def getDurationInSeconds(self, durationString):
+        minute, seconds = durationString.split(":")
+        durationInSeconds = (int(minute) * 60) + int(seconds)
+        return durationInSeconds
+        
+   
+   
+
 
     def getRecordCollection(self, type):
         self.generateURLOpener()
@@ -177,7 +187,16 @@ class Discogs:
 
             tracks = []
             for track in release.tracklist:
-                newTrack = {"title": track.title, "position": track.position, "duration": track.duration}
+                duration = track.duration
+                if track.position == "":
+                    self.logger.info("No discogs position: {}".format(title))
+                if track.duration == "":
+                    self.logger.info("No discogs duration: {}".format(title))
+                    duration = self.lastfm.getTrackDuration(artist, track.title)
+                else:
+                    duration = self.getDurationInSeconds(track.duration)
+                newTrack = {"title": track.title, "position": track.position, "duration": duration}
+                
                 tracks.append(newTrack)
 
             album = {"title": title, "artist": artist, "tracks": tracks}

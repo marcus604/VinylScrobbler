@@ -10,6 +10,7 @@ import pygame_menu
 #Custom
 from Classes import *
 from discogs import *
+from lastfm import *
 from log import getLogger, logging
 
 PROGRAM_NAME = "VinylScrobbler"
@@ -137,16 +138,20 @@ def resetScreen(screen):
     screen.fill(black)
 
 
+def showRecord(record, pg, screen):
+    logger.debug("Record ID: {}".format(record))
+    name = record['title']
+    artist = record['artist']
+    tracks = record['tracks']
 
+def showRecordsOnScreen(records, counter, pg, screen):
+    currentRecordID = records[counter][0]
 
-def showRecordOnScreen(records, counter, pg, screen):
-        currentRecordID = records[counter][0]
+    fullPath = ("{}{}.jpg".format(path, currentRecordID))
 
-        fullPath = ("{}{}.jpg".format(path, currentRecordID))
+    image = pg.image.load(fullPath)
 
-        image = pg.image.load(fullPath)
-
-        screen.blit(image, (40, 0))
+    screen.blit(image, (40, 0))
 
 ##################################################
 #################Main Application#################
@@ -161,6 +166,18 @@ def main():
     config.read("config.ini")
     logger.debug("Loaded config")
 
+    #Check if last.fm connection is valid
+    lastfmConfig = config["LASTFM"]
+    lastfm = Lastfm(
+        lastfmConfig["KEY"],
+        lastfmConfig["SECRET"],
+        lastfmConfig["USERNAME"],
+        lastfmConfig["PASSWORD_HASH"],
+        logger
+    )
+    
+    lastfm.connect()
+
     discogsConfig = config["DISCOGS"]
     global discogs
     discogs = Discogs(
@@ -171,6 +188,7 @@ def main():
         COLLECTION_FILE_NAME,
         PROGRAM_NAME,
         VERSION,
+        lastfm,
         logger)
 
     
@@ -189,7 +207,8 @@ def main():
             logger.error(e)
             quit()
    
-    #Check if last.fm connection is valid
+    
+
     
     global pi
     
@@ -217,7 +236,7 @@ def main():
     titleSortedRecords = sorted(discogsLibrary.items(), key=lambda items: items[1]['title'])
     sortedRecords = sorted(titleSortedRecords, key=lambda items: items[1]['artist'])
 
-    showRecordOnScreen(sortedRecords, counter, pg, screen)
+    showRecordsOnScreen(sortedRecords, counter, pg, screen)
     
     pg.display.update()
 
@@ -239,16 +258,11 @@ def main():
                     if counter < 0:
                         counter = numOfRecords
                 logger.debug("Count: {}".format(counter))
-                showRecordOnScreen(sortedRecords, counter, pg, screen)
+                showRecordsOnScreen(sortedRecords, counter, pg, screen)
             elif event.type == ROTARY_SHORT:
                 logger.debug("Short press PG")
                 currentRecordID = sortedRecords[counter][0]
-                logger.debug("Record ID: {}".format(currentRecordID))
-                try:
-                    logger.debug("Record Name: {}".format(discogsLibrary[currentRecordID]))
-                    #Show scrobble menu
-                except KeyError:
-                    logger.error("No record found with ID: {}".format(currentRecordID))
+                showRecord(discogsLibrary[currentRecordID], pg, screen)
             elif event.type == ROTARY_LONG:
                 logger.debug("long press PG")
                 showSettingsMenu(screen)
@@ -263,7 +277,7 @@ def main():
                     sortedRecords = sorted(titleSortedRecords, key=lambda items: items[1]['artist'])
                     discogs.changed = False
                 resetScreen(screen)
-                showRecordOnScreen(sortedRecords, counter, pg, screen)
+                showRecordsOnScreen(sortedRecords, counter, pg, screen)
         pg.display.update()
 
 
