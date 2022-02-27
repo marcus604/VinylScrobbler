@@ -126,8 +126,8 @@ def showSyncMenu(screen):
         onclose=pygame_menu.events.CLOSE,
         )  
 
-    menu.add.button('Full', discogs.fullLibraryUpdate)
-    menu.add.button('Partial', discogs.partialLibraryUpdate) #Ask partial or full
+    menu.add.button('Update', discogs.partialLibraryUpdate)
+    menu.add.button('Reset & Sync', discogs.reset)
     menu.add.button('Back', pygame_menu.events.CLOSE) 
 
     menu.mainloop(screen)
@@ -135,6 +135,9 @@ def showSyncMenu(screen):
 def resetScreen(screen):
     black = 20, 20, 40
     screen.fill(black)
+
+
+
 
 def showRecordOnScreen(records, counter, pg, screen):
         currentRecordID = records[counter][0]
@@ -170,10 +173,7 @@ def main():
         VERSION,
         logger)
 
-    now = time.time()
-    done = time.time()
-    print("Took {}".format(done - now))
-    now = time.time()
+    
     try:
         discogs.connect()
         discogsLibrary = discogs.getLibrary()
@@ -182,16 +182,13 @@ def main():
         try:
             discogs.createLibraryDir()
             discogs.connect()
+            #Show something on screen, 221 records took 6 minutes
             discogs.fullLibraryUpdate()
             discogsLibrary = discogs.getLibrary()
         except (DiscogsConnectError, DiscogsCredentialError) as e:
             logger.error(e)
             quit()
-
-    done = time.time()
-    print("Took {}".format(done - now))
-        
-    
+   
     #Check if last.fm connection is valid
     
     global pi
@@ -249,12 +246,22 @@ def main():
                 logger.debug("Record ID: {}".format(currentRecordID))
                 try:
                     logger.debug("Record Name: {}".format(discogsLibrary[currentRecordID]))
-
+                    #Show scrobble menu
                 except KeyError:
                     logger.error("No record found with ID: {}".format(currentRecordID))
             elif event.type == ROTARY_LONG:
                 logger.debug("long press PG")
                 showSettingsMenu(screen)
+                if discogs.changed:
+                    discogsLibrary = discogs.getLibrary()
+                    numOfRecords = len(discogsLibrary) - 1
+                    #Start in the middle of the library
+                    counter = int(numOfRecords / 2)
+                    
+                    #Sort records by title then artist
+                    titleSortedRecords = sorted(discogsLibrary.items(), key=lambda items: items[1]['title'])
+                    sortedRecords = sorted(titleSortedRecords, key=lambda items: items[1]['artist'])
+                    discogs.changed = False
                 resetScreen(screen)
                 showRecordOnScreen(sortedRecords, counter, pg, screen)
         pg.display.update()

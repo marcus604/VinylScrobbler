@@ -2,6 +2,8 @@ import json
 from urllib.error import URLError
 import urllib.request
 from pathlib import Path
+import os
+import glob 
 import time
 from urllib import request
 
@@ -33,6 +35,7 @@ class Discogs:
         self.logger = logger
         self.client = ""
         self.user = ""
+        self.changed = False
 
         self.collectionFileFQPath = "{}/{}".format(dataDirName, collectionFileName)
         self.imageDirFQPath = "{}/{}".format(dataDirName, imageDirName)
@@ -57,6 +60,28 @@ class Discogs:
     def createLibraryDir(self):
         Path(self.imageDirFQPath).mkdir(parents=True, exist_ok=True)
         self.logger.info("Created library directory: {}".format(self.imageDirFQPath))
+
+    def deleteLibrary(self):
+        try:
+            os.remove(self.collectionFileFQPath)
+        except OSError as we:
+            self.logger.error("Could not delete {}".format(self.collectionFileFQPath))
+        self.logger.info("Deleted library file")
+        
+        imageFiles = glob.glob("{}/*".format(self.imageDirFQPath))
+
+        for image in imageFiles:
+            try:
+                os.remove(image)
+            except OSError as we:
+                self.logger.error("Could not delete {}".format(image))
+        self.logger.info("Deleted library images")
+
+    def reset(self):
+        self.deleteLibrary()
+        self.createLibraryDir()
+        self.fullLibraryUpdate()
+
 
     def getClient(self):
         clientString = "{}/{}".format(self.programName, self.version)
@@ -135,8 +160,10 @@ class Discogs:
             if type is self.TYPE_PARTIAL:
                 if str(id) in currentCollection:
                     self.logger.debug("Album {} already exists".format(id))
+                    userCollectionDict[id] = currentCollection[str(id)]
                     continue
 
+            self.changed = True
             
             #check if more than one artist
             if len(release.artists) != 1:
@@ -158,8 +185,8 @@ class Discogs:
             self.logger.debug("Grabbed album: {}".format(album))
             userCollectionDict[id] = album
 
-
-        self.saveToJSON(self.collectionFileFQPath, userCollectionDict)
+        if self.changed:
+            self.saveToJSON(self.collectionFileFQPath, userCollectionDict)
 
     def getDiscogsUserCollection(self, user):
         #return user.collection_folders[1].releases #TODO remove: used for debugging
