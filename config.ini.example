@@ -8,3 +8,8 @@ secret =
 username = 
 password_hash = 
 
+[PREFERENCES]
+scrobble_whole_album = True
+default_track_duration = 270
+
+
