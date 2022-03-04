@@ -1,6 +1,6 @@
 from configparser import ConfigParser
 import sys
-import shutil
+import threading
 import pigpio, time, os
 import pygame as pg
 from pygame.locals import *
@@ -102,10 +102,13 @@ def rotary_interrupt(gpio,level,tim):
                 
 
 def showSettingsMenu(screen):
+
+    theme = pygame_menu.themes.THEME_DARK.copy()
+    theme.title_bar_style = pygame_menu.widgets.MENUBAR_STYLE_SIMPLE
     #Settings Menu
     menu = pygame_menu.Menu(
         'Settings', 320, 240,
-        theme=pygame_menu.themes.THEME_DARK,
+        theme=theme,
         mouse_enabled=False,
         mouse_visible=False,
         onclose=pygame_menu.events.CLOSE,
@@ -118,10 +121,14 @@ def showSettingsMenu(screen):
     menu.mainloop(screen)
 
 def showSyncMenu(screen):
+
+    theme = pygame_menu.themes.THEME_DARK.copy()
+    theme.title_bar_style = pygame_menu.widgets.MENUBAR_STYLE_SIMPLE
+
     #Settings Menu
     menu = pygame_menu.Menu(
         'Settings', 320, 240,
-        theme=pygame_menu.themes.THEME_DARK,
+        theme=theme,
         mouse_enabled=False,
         mouse_visible=False,
         onclose=pygame_menu.events.CLOSE,
@@ -137,12 +144,92 @@ def resetScreen(screen):
     black = 20, 20, 40
     screen.fill(black)
 
+def getNumberOfSides(record):
+    tracks = record['tracks']
+    numOfSides = 2
+    lastTrack = tracks[-1]
+    position = lastTrack['position']
+    if "J" in position:
+        numOfSides = 10
+    elif "H" in position:
+        numOfSides = 8
+    elif "F" in position:
+        numOfSides = 6
+    elif "D" in position:
+        numOfSides = 4
+
+    return numOfSides
+
+#Based on given album title length return an appropriate font size
+def getMenuFontSize(title):
+    length = len(title)
+
+def startScrobbling(record):
+    name = record['title']
+    artist = record['artist']
+    tracks = record['tracks']
+
+    logger.info("Scrobbling record: {} - {}".format(artist, name))
+    scrobbleThread = threading.Thread(target=scrobbleRecord, args=[record])
+    logger.debug("Starting new thread")
+    scrobbleThread.start()
+    
+        
+
+def scrobbleRecord(record):
+    artist = record['artist']
+    album = record['title']
+    tracks = record['tracks']
+
+    for track in tracks:
+        trackTitle = track['title']
+        logger.info("Scrobbling track: {} - {} - {}".format(artist, album, trackTitle))
+        duration = track['duration']
+        lastfm.updateNowPlaying(artist, album, trackTitle)
+        time.sleep(duration / 2)
+        currentTime = int(time.time())
+        lastfm.scrobble(artist, album, trackTitle, currentTime)
+        time.sleep(duration / 2)
+        
+
+
 
 def showRecord(record, pg, screen):
     logger.debug("Record ID: {}".format(record))
     name = record['title']
     artist = record['artist']
-    tracks = record['tracks']
+    numOfSides = getNumberOfSides(record)
+   
+    theme = pygame_menu.themes.THEME_DARK.copy()
+    theme.widget_font_size = 20
+    theme.title = False
+    theme.widget_selection_effect = pygame_menu.widgets.SimpleSelection()
+    theme.widget_selection_color = (255, 0, 0)
+    
+    
+    
+    menu = pygame_menu.Menu(
+        title=False,
+        width=320, 
+        height=240,
+        theme=theme,
+        mouse_enabled=False,
+        mouse_visible=False,
+        onclose=pygame_menu.events.CLOSE,
+        )  
+
+    
+    menu.add.label(artist, align=pygame_menu.locals.ALIGN_LEFT)
+    menu.add.label(name, align=pygame_menu.locals.ALIGN_LEFT)
+
+    menu.add.button("Scrobble", startScrobbling, record, align=pygame_menu.locals.ALIGN_CENTER)
+    #for side in range(numOfSides):
+    #    sideString = "Side {}".format(side + 1)
+    #    menu.add.button(sideString, lastfm.scrobbleSide, record, side + 1, align=pygame_menu.locals.ALIGN_CENTER)
+   
+    menu.add.button('Back', pygame_menu.events.CLOSE) 
+
+    menu.mainloop(screen)
 
 def showRecordsOnScreen(records, counter, pg, screen):
     currentRecordID = records[counter][0]
@@ -166,8 +253,11 @@ def main():
     config.read("config.ini")
     logger.debug("Loaded config")
 
+    preferencesConfig = config["PREFERENCES"]
+
     #Check if last.fm connection is valid
     lastfmConfig = config["LASTFM"]
+    global lastfm
     lastfm = Lastfm(
         lastfmConfig["KEY"],
         lastfmConfig["SECRET"],
@@ -189,6 +279,7 @@ def main():
         PROGRAM_NAME,
         VERSION,
         lastfm,
+        int(preferencesConfig["DEFAULT_TRACK_DURATION"]),
         logger)
 
     
@@ -240,10 +331,9 @@ def main():
     
     pg.display.update()
 
-
+    global scrobbleThread
 
     while True:
-        #toggleBacklight()
         for event in pg.event.get():
             if event.type == QUIT:
                 pg.quit()
@@ -263,6 +353,8 @@ def main():
                 logger.debug("Short press PG")
                 currentRecordID = sortedRecords[counter][0]
                 showRecord(discogsLibrary[currentRecordID], pg, screen)
+                resetScreen(screen)
+                showRecordsOnScreen(sortedRecords, counter, pg, screen)
             elif event.type == ROTARY_LONG:
                 logger.debug("long press PG")
                 showSettingsMenu(screen)

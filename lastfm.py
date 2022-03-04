@@ -28,8 +28,23 @@ class Lastfm:
             return 0
         return duration / 1000
     
-    def scrobble(self):
-        self.logger.info("Scrobbling track")
+    def updateNowPlaying(self, artist, album, trackTitle):
+        self.network.update_now_playing(
+            artist=artist,
+            album=album,
+            title=trackTitle
+        )
+        
+
+    def scrobble(self, artist, album, trackTitle, timestamp):
+        self.network.scrobble(
+            artist=artist,
+            album=album,
+            title=trackTitle,
+            timestamp=timestamp
+        )
+
+    
 
 def hashPassword(password):
     return pylast.md5(password)

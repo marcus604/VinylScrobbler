@@ -24,7 +24,7 @@ class Discogs:
     TYPE_PARTIAL = "Partial"
     TYPE_FULL = "Full"
 
-    def __init__(self, token, username, dataDirName, imageDirName, collectionFileName, programName, version, lastfm, logger):
+    def __init__(self, token, username, dataDirName, imageDirName, collectionFileName, programName, version, lastfm, defaultDuration, logger):
         self.token = token
         self.username = username
         self.dataDirName = dataDirName
@@ -32,6 +32,7 @@ class Discogs:
         self.collectionFileName = collectionFileName
         self.programName = programName
         self.version = version
+        self.defaultDuration = defaultDuration
         self.logger = logger
         self.client = ""
         self.user = ""
@@ -189,10 +190,12 @@ class Discogs:
             for track in release.tracklist:
                 duration = track.duration
                 if track.position == "":
-                    self.logger.info("No discogs position: {}".format(title))
+                    self.logger.debug("No discogs position: {}".format(title))
                 if track.duration == "":
-                    self.logger.info("No discogs duration: {}".format(title))
+                    self.logger.debug("No discogs duration: {}".format(title))
                     duration = self.lastfm.getTrackDuration(artist, track.title)
+                    if duration == "" or duration == 0 or duration == 0.0:
+                        duration = self.defaultDuration
                 else:
                     duration = self.getDurationInSeconds(track.duration)
                 newTrack = {"title": track.title, "position": track.position, "duration": duration}
