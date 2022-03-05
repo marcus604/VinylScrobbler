@@ -238,6 +238,8 @@ def showRecordsOnScreen(records, counter, pg, screen):
 
     image = pg.image.load(fullPath)
 
+    if image.get_width() != 240 or image.get_height() != 240:
+        image = pg.transform.scale(image, (240, 240))
     screen.blit(image, (40, 0))
 
 ##################################################
