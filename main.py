@@ -144,22 +144,6 @@ def resetScreen(screen):
     black = 20, 20, 40
     screen.fill(black)
 
-def getNumberOfSides(record):
-    tracks = record['tracks']
-    numOfSides = 2
-    lastTrack = tracks[-1]
-    position = lastTrack['position']
-    if "J" in position:
-        numOfSides = 10
-    elif "H" in position:
-        numOfSides = 8
-    elif "F" in position:
-        numOfSides = 6
-    elif "D" in position:
-        numOfSides = 4
-
-    return numOfSides
-
 #Based on given album title length return an appropriate font size
 def getMenuFontSize(title):
     length = len(title)
@@ -173,8 +157,6 @@ def startScrobbling(record):
     scrobbleThread = threading.Thread(target=scrobbleRecord, args=[record])
     logger.debug("Starting new thread")
     scrobbleThread.start()
-    
-        
 
 def scrobbleRecord(record):
     artist = record['artist']
@@ -191,43 +173,83 @@ def scrobbleRecord(record):
         lastfm.scrobble(artist, album, trackTitle, currentTime)
         time.sleep(duration / 2)
         
-
-
-
-def showRecord(record, pg, screen):
-    logger.debug("Record ID: {}".format(record))
+def showRecord(record, recordID, pg, screen):
+    logger.debug("Record ID: {}".format(recordID))
     name = record['title']
     artist = record['artist']
-    numOfSides = getNumberOfSides(record)
+    
+    imagePath = ("{}{}.jpg".format(path, recordID))
    
     theme = pygame_menu.themes.THEME_DARK.copy()
     theme.widget_font_size = 20
     theme.title = False
-    theme.widget_selection_effect = pygame_menu.widgets.SimpleSelection()
-    theme.widget_selection_color = (255, 0, 0)
-    
-    
-    
+    theme.widget_selection_effect = pygame_menu.widgets.SimpleSelection()    
+    theme.background_color = pygame_menu.BaseImage(
+        image_path=imagePath,
+        drawing_mode=pygame_menu.baseimage.IMAGE_MODE_CENTER
+    )
+       
     menu = pygame_menu.Menu(
         title=False,
         width=320, 
         height=240,
         theme=theme,
+        center_content=False,
         mouse_enabled=False,
         mouse_visible=False,
         onclose=pygame_menu.events.CLOSE,
         )  
 
-    
-    menu.add.label(artist, align=pygame_menu.locals.ALIGN_LEFT)
-    menu.add.label(name, align=pygame_menu.locals.ALIGN_LEFT)
+    padding = 0
+  
+    artistLabel = menu.add.label(
+        artist, 
+        background_color=(51, 51, 51, 200),
+        max_char=-1,
+        float=True  
+    )
 
-    menu.add.button("Scrobble", startScrobbling, record, align=pygame_menu.locals.ALIGN_CENTER)
-    #for side in range(numOfSides):
-    #    sideString = "Side {}".format(side + 1)
-    #    menu.add.button(sideString, lastfm.scrobbleSide, record, side + 1, align=pygame_menu.locals.ALIGN_CENTER)
-   
-    menu.add.button('Back', pygame_menu.events.CLOSE) 
+    try:
+        for labelPart in artistLabel:
+            labelPart.translate(0 , 0 + padding)
+            padding = padding + 30
+    except:
+        artistLabel.translate(0, 0)
+        padding = padding + 30
+        
+    namePos = 15
+    nameLabel = menu.add.label(
+        name, 
+        background_color=(51, 51, 51, 200),
+        max_char=-1,
+        float=True  
+    )
+    
+    try:
+        for labelPart in nameLabel:
+            labelPart.translate(0, namePos + padding)
+            padding = padding + 30
+    except:
+        nameLabel.translate(0, namePos + padding)
+           
+    buttonsPosY = 200
+    scrobbleBtnPosX = 80
+    backBtnPosX = -80
+
+    menu.add.button(
+        "Scrobble",
+        startScrobbling, 
+        record,
+        background_color=(51, 51, 51, 200),
+        align=pygame_menu.locals.ALIGN_LEFT,
+        float=True).translate(scrobbleBtnPosX, buttonsPosY)
+
+    menu.add.button(
+        "Back",
+        pygame_menu.events.CLOSE,
+        background_color=(51, 51, 51, 200),
+        align=pygame_menu.locals.ALIGN_RIGHT,
+        float=True).translate(backBtnPosX, buttonsPosY) 
 
     menu.mainloop(screen)
 
@@ -240,6 +262,7 @@ def showRecordsOnScreen(records, counter, pg, screen):
 
     if image.get_width() != 240 or image.get_height() != 240:
         image = pg.transform.scale(image, (240, 240))
+
     screen.blit(image, (40, 0))
 
 ##################################################
@@ -354,7 +377,7 @@ def main():
             elif event.type == ROTARY_SHORT:
                 logger.debug("Short press PG")
                 currentRecordID = sortedRecords[counter][0]
-                showRecord(discogsLibrary[currentRecordID], pg, screen)
+                showRecord(discogsLibrary[currentRecordID], currentRecordID, pg, screen)
                 resetScreen(screen)
                 showRecordsOnScreen(sortedRecords, counter, pg, screen)
             elif event.type == ROTARY_LONG:
