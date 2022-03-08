@@ -105,6 +105,8 @@ def showSettingsMenu(screen):
 
     theme = pygame_menu.themes.THEME_DARK.copy()
     theme.title_bar_style = pygame_menu.widgets.MENUBAR_STYLE_SIMPLE
+    theme.widget_selection_effect = pygame_menu.widgets.SimpleSelection()
+
     #Settings Menu
     menu = pygame_menu.Menu(
         'Settings', 320, 240,
@@ -124,6 +126,7 @@ def showSyncMenu(screen):
 
     theme = pygame_menu.themes.THEME_DARK.copy()
     theme.title_bar_style = pygame_menu.widgets.MENUBAR_STYLE_SIMPLE
+    theme.widget_selection_effect = pygame_menu.widgets.SimpleSelection()
 
     #Settings Menu
     menu = pygame_menu.Menu(
@@ -143,10 +146,6 @@ def showSyncMenu(screen):
 def resetScreen(screen):
     black = 20, 20, 40
     screen.fill(black)
-
-#Based on given album title length return an appropriate font size
-def getMenuFontSize(title):
-    length = len(title)
 
 def startScrobbling(record):
     name = record['title']
