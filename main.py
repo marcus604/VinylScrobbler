@@ -43,11 +43,13 @@ ROTARY_UP = pg.USEREVENT + 1
 ROTARY_DOWN = pg.USEREVENT + 2
 ROTARY_SHORT = pg.USEREVENT + 3
 ROTARY_LONG = pg.USEREVENT + 4
+DONE_SCROBBLING = pg.USEREVENT + 5
 
 ROTARY_UP_event = pg.event.Event(ROTARY_UP)
 ROTARY_DOWN_event = pg.event.Event(ROTARY_DOWN)
 ROTARY_SHORT_event = pg.event.Event(ROTARY_SHORT)
 ROTARY_LONG_event = pg.event.Event(ROTARY_LONG)
+DONE_SCROBBLING_event = pg.event.Event(DONE_SCROBBLING)
 
 path = 'data/images/'
 
@@ -147,30 +149,103 @@ def resetScreen(screen):
     black = 20, 20, 40
     screen.fill(black)
 
-def startScrobbling(record):
+def startScrobbling(record, recordID, screen):
     name = record['title']
     artist = record['artist']
     tracks = record['tracks']
 
+    global stopScrobbling
+    stopScrobbling = False
     logger.info("Scrobbling record: {} - {}".format(artist, name))
     scrobbleThread = threading.Thread(target=scrobbleRecord, args=[record])
     logger.debug("Starting new thread")
     scrobbleThread.start()
 
+    showNowScrobblingMenu(record, recordID, screen)
+    logger.info("Stop scrobbling")
+    stopScrobbling = True
+
 def scrobbleRecord(record):
     artist = record['artist']
     album = record['title']
     tracks = record['tracks']
+    global stopScrobbling
 
     for track in tracks:
+        if stopScrobbling:
+            break
         trackTitle = track['title']
-        logger.info("Scrobbling track: {} - {} - {}".format(artist, album, trackTitle))
+        logger.info("Now Playing {} - {} - {}".format(artist, album, trackTitle))
         duration = track['duration']
+        halfwayTime = int(time.time()) + (duration / 2)
+        endTime = int(time.time()) + duration
         lastfm.updateNowPlaying(artist, album, trackTitle)
-        time.sleep(duration / 2)
-        currentTime = int(time.time())
-        lastfm.scrobble(artist, album, trackTitle, currentTime)
-        time.sleep(duration / 2)
+        scrobbled = False
+        while True:
+            if stopScrobbling:
+                break
+            currentTime = int(time.time())
+            if scrobbled:
+                if (endTime - currentTime) <= 1:
+                    if track == tracks[-1]:
+                        logger.info("Finished scrobbling album")
+                    break
+            elif (halfwayTime - currentTime) <= 1:
+                lastfm.scrobble(artist, album, trackTitle, currentTime)
+                scrobbled = True
+                logger.info("Scrobbled: {} - {} - {}".format(artist, album, trackTitle))         
+    pg.event.post(DONE_SCROBBLING_event)
+        
+def showNowScrobblingMenu(record, recordID, screen):
+
+    imagePath = ("{}{}.jpg".format(path, recordID))
+
+    theme = pygame_menu.themes.THEME_DARK.copy()
+    theme.title = False
+    theme.widget_font_size = 16
+    theme.widget_selection_effect = pygame_menu.widgets.SimpleSelection()
+    theme.background_color = pygame_menu.BaseImage(
+        image_path=imagePath,
+        drawing_mode=pygame_menu.baseimage.IMAGE_MODE_CENTER
+    )
+
+    #Settings Menu
+    menu = pygame_menu.Menu(
+        title=False,
+        width=320, 
+        height=240,
+        theme=theme,
+        center_content=False,
+        mouse_enabled=False,
+        mouse_visible=False,
+        onclose=pygame_menu.events.CLOSE,
+        )  
+
+    buttonPosY = 200
+    menu.add.button(
+        'Stop', 
+        pygame_menu.events.CLOSE,
+        background_color=(51, 51, 51, 200),
+        float=True).translate(0, buttonPosY) 
+    
+    while True:
+
+        events = pg.event.get()
+        
+        for event in events:
+            if event.type == DONE_SCROBBLING:
+                menu.close()
+                return
+        
+        menu.update(events)
+        
+        if menu.is_enabled():
+            menu.draw(screen)
+            pg.display.update()
+        else:
+            return
+        
+    #menu.mainloop(screen)
         
 def showRecord(record, recordID, pg, screen):
     logger.debug("Record ID: {}".format(recordID))
@@ -239,6 +314,8 @@ def showRecord(record, recordID, pg, screen):
         "Scrobble",
         startScrobbling, 
         record,
+        recordID,
+        screen,
         background_color=(51, 51, 51, 200),
         align=pygame_menu.locals.ALIGN_LEFT,
         float=True).translate(scrobbleBtnPosX, buttonsPosY)
