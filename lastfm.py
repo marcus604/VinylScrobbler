@@ -24,7 +24,7 @@ class Lastfm:
             track = self.network.get_track(artist, track)
             duration = track.get_duration()
         except:
-            self.logger.info("Lastfm could not find track duration: {} - {}".format(artist, track))
+            self.logger.debug("Lastfm could not find track duration: {} - {}".format(artist, track))
             return 0
         return duration / 1000
     

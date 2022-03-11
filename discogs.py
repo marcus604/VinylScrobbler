@@ -4,7 +4,6 @@ import urllib.request
 from pathlib import Path
 import os
 import glob 
-import time
 from urllib import request
 
 import discogs_client
@@ -38,6 +37,7 @@ class Discogs:
         self.user = ""
         self.changed = False
         self.lastfm = lastfm
+        self.syncProgress = False
 
         self.collectionFileFQPath = "{}/{}".format(dataDirName, collectionFileName)
         self.imageDirFQPath = "{}/{}".format(dataDirName, imageDirName)
@@ -129,7 +129,6 @@ class Discogs:
     def saveAlbumArtwork(self, url, id, dest):
         filename = "{}/{}.jpg".format(dest, id)
 
-        timesRetried = 0
         request.urlretrieve(url, filename)
 
         self.resizeImage(filename)
@@ -149,7 +148,7 @@ class Discogs:
         return durationInSeconds
         
    
-   
+
 
 
     def getRecordCollection(self, type):
@@ -157,6 +156,7 @@ class Discogs:
         userCollectionDict = {}
         collectionItems = self.getDiscogsUserCollection(self.user)
 
+        self.syncProgress = 0
         totalAlbums = len(collectionItems)
         count = 0
 
@@ -164,7 +164,9 @@ class Discogs:
             currentCollection = self.getLibrary()
 
         for collectionItem in collectionItems:
-
+            
+            self.syncProgress = int((count / totalAlbums) * 100)
+            count += 1 
             release = collectionItem.release
             id = release.id
 
@@ -207,11 +209,11 @@ class Discogs:
             self.logger.debug("Grabbed album: {}".format(album))
             userCollectionDict[id] = album
 
+        self.syncProgress = 100
         if self.changed:
             self.saveToJSON(self.collectionFileFQPath, userCollectionDict)
 
     def getDiscogsUserCollection(self, user):
-        #return user.collection_folders[1].releases #TODO remove: used for debugging
         return user.collection_folders[0].releases #0 is all folder
 
 

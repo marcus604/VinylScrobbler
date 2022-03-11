@@ -101,7 +101,48 @@ def rotary_interrupt(gpio,level,tim):
                         if last_DT == 1:
                                 pg.event.post(pg.event.Event(pg.KEYDOWN, key=pg.K_UP, test=True))
                                 pg.event.post(ROTARY_DOWN_event)
-                
+                   
+
+def showLoadingScreen(screen):
+
+    theme = pygame_menu.themes.THEME_DARK.copy()
+    theme.title = False
+    theme.widget_font_size = 36
+   
+
+    menu = pygame_menu.Menu(
+        title=False,
+        width=320, 
+        height=240,
+        theme=theme,
+        center_content=False,
+        mouse_enabled=False,
+        mouse_visible=False,
+        onclose=pygame_menu.events.CLOSE,
+        )  
+
+    menu.add.label("Syncing Libary").translate(0, 70)
+    progressLabel = menu.add.label("0%").translate(0, 90)    
+    
+    while True:
+
+        events = pg.event.get()
+
+        percentageDone = discogs.syncProgress
+        if percentageDone == 100:
+            menu.close()
+            return
+        elif percentageDone:
+            progressString = "{}%".format(percentageDone)
+            progressLabel.set_title(progressString)
+        
+        menu.update(events)
+        
+        if menu.is_enabled():
+            menu.draw(screen)
+            pg.display.update()
+        else:
+            return
 
 def showSettingsMenu(screen):
 
@@ -139,8 +180,8 @@ def showSyncMenu(screen):
         onclose=pygame_menu.events.CLOSE,
         )  
 
-    menu.add.button('Update', discogs.partialLibraryUpdate)
-    menu.add.button('Reset & Sync', discogs.reset)
+    menu.add.button('Update', startSyncing, "Update", screen)
+    menu.add.button('Reset & Sync', startSyncing, "Reset", screen)
     menu.add.button('Back', pygame_menu.events.CLOSE) 
 
     menu.mainloop(screen)
@@ -148,6 +189,20 @@ def showSyncMenu(screen):
 def resetScreen(screen):
     black = 20, 20, 40
     screen.fill(black)
+
+def startSyncing(syncType, screen):
+    if syncType == "Update":
+        syncThread = threading.Thread(target=discogs.partialLibraryUpdate)
+    elif syncType == "Full":
+        syncThread = threading.Thread(target=discogs.fullLibraryUpdate)
+    elif syncType == "Reset":
+        syncThread = threading.Thread(target=discogs.reset)
+
+    syncThread.start()
+
+    showLoadingScreen(screen)
+
+
 
 def startScrobbling(record, recordID, screen):
     name = record['title']
@@ -209,7 +264,6 @@ def showNowScrobblingMenu(record, recordID, screen):
         drawing_mode=pygame_menu.baseimage.IMAGE_MODE_CENTER
     )
 
-    #Settings Menu
     menu = pygame_menu.Menu(
         title=False,
         width=320, 
@@ -244,8 +298,6 @@ def showNowScrobblingMenu(record, recordID, screen):
             pg.display.update()
         else:
             return
-        
-    #menu.mainloop(screen)
         
 def showRecord(record, recordID, pg, screen):
     logger.debug("Record ID: {}".format(recordID))
@@ -348,6 +400,18 @@ def main():
 
     #Log startup
     logLaunch()
+
+    global pi
+    
+    pi = pigpio.pi()                
+    pi.write(DISP_BL, 1)
+    pi.set_mode(Enc_DT, pigpio.INPUT)
+    pi.set_mode(Enc_CLK, pigpio.INPUT)
+    pi.set_mode(Enc_SW, pigpio.INPUT)
+    pi.set_glitch_filter(Enc_SW, 1000)
+    pi.callback(Enc_DT, pigpio.EITHER_EDGE, rotary_interrupt)
+    pi.callback(Enc_CLK, pigpio.EITHER_EDGE, rotary_interrupt)
+    pi.callback(Enc_SW, pigpio.FALLING_EDGE, rotary_switch_interrupt)
     
     config = ConfigParser()
     
@@ -383,7 +447,11 @@ def main():
         int(preferencesConfig["DEFAULT_TRACK_DURATION"]),
         logger)
 
-    
+    pg.init()
+    pg.mouse.set_visible(False)
+    screen = pg.display.set_mode(WINSIZE)
+    resetScreen(screen)
+
     try:
         discogs.connect()
         discogsLibrary = discogs.getLibrary()
@@ -392,36 +460,15 @@ def main():
         try:
             discogs.createLibraryDir()
             discogs.connect()
-            #Show something on screen, 221 records took 6 minutes
-            discogs.fullLibraryUpdate()
+            startSyncing("Full", screen)
             discogsLibrary = discogs.getLibrary()
         except (DiscogsConnectError, DiscogsCredentialError) as e:
             logger.error(e)
             quit()
    
-    
 
-    
-    global pi
-    
-    pi = pigpio.pi()                # init pigpio deamon
-    pi.write(DISP_BL, 1)
-    pi.set_mode(Enc_DT, pigpio.INPUT)
-    pi.set_mode(Enc_CLK, pigpio.INPUT)
-    pi.set_mode(Enc_SW, pigpio.INPUT)
-    pi.set_glitch_filter(Enc_SW, 1000)
-    pi.callback(Enc_DT, pigpio.EITHER_EDGE, rotary_interrupt)
-    pi.callback(Enc_CLK, pigpio.EITHER_EDGE, rotary_interrupt)
-    pi.callback(Enc_SW, pigpio.FALLING_EDGE, rotary_switch_interrupt)
-    
-    
-    pg.init()
-    pg.mouse.set_visible(False)
-    screen = pg.display.set_mode(WINSIZE)
-    resetScreen(screen)
-
-    numOfRecords = len(discogsLibrary) - 1
     #Start in the middle of the library
+    numOfRecords = len(discogsLibrary) - 1
     counter = int(numOfRecords / 2)
     
     #Sort records by title then artist
@@ -451,13 +498,13 @@ def main():
                 logger.debug("Count: {}".format(counter))
                 showRecordsOnScreen(sortedRecords, counter, pg, screen)
             elif event.type == ROTARY_SHORT:
-                logger.debug("Short press PG")
+                logger.debug("Short press")
                 currentRecordID = sortedRecords[counter][0]
                 showRecord(discogsLibrary[currentRecordID], currentRecordID, pg, screen)
                 resetScreen(screen)
                 showRecordsOnScreen(sortedRecords, counter, pg, screen)
             elif event.type == ROTARY_LONG:
-                logger.debug("long press PG")
+                logger.debug("Long press")
                 showSettingsMenu(screen)
                 if discogs.changed:
                     discogsLibrary = discogs.getLibrary()
