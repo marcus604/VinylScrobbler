@@ -212,9 +212,9 @@ class Discogs:
             self.logger.debug("Grabbed album: {}".format(album))
             userCollectionDict[id] = album
 
-        self.syncProgress = 100
         if self.changed:
             self.saveToJSON(self.collectionFileFQPath, userCollectionDict)
+        self.syncProgress = 100
 
     def getDiscogsUserCollection(self, user):
         return user.collection_folders[0].releases #0 is all folder

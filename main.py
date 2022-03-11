@@ -201,9 +201,7 @@ def startSyncing(syncType, screen):
     syncThread.start()
 
     showLoadingScreen(screen)
-
-
-
+    
 def startScrobbling(record, recordID, screen):
     name = record['title']
     artist = record['artist']
