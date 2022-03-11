@@ -3,6 +3,7 @@ from urllib.error import URLError
 import urllib.request
 from pathlib import Path
 import os
+import re
 import glob 
 from urllib import request
 
@@ -183,6 +184,8 @@ class Discogs:
                 self.logger.debug("More than 1 artist found on release {}".format(id))
             artist = release.artists[0].name
 
+            artist = checkArtistForBrackets(artist)
+
             #Download image
             imageURL = release.images[0]
 
@@ -228,3 +231,12 @@ class Discogs:
         self.saveToJSON(self.collectionFileFQPath, userCollection)
 
 
+#Discogs API will give artist string with brackets if multiple artists found with same name
+#Will break on artists with names that contain but dont end with (<number>)
+def checkArtistForBrackets(artist):
+
+    pattern = re.compile(".+\(\d\)$")
+    if pattern.match(artist):
+        return artist.split("(")[0]
+    else:
+        return artist
