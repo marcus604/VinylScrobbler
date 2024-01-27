@@ -1,7 +1,14 @@
 # Vinyl Scrobbler
 
 
-Tool that allows user to select Album pulled from discogs collection and scrobble to last.fm
+Device that allows user to select Album pulled from discogs collection and scrobble to last.fm
+
+![2023-09-18 23-56-52 (B,R24,S3)](https://github.com/marcus604/VinylScrobbler/assets/2810211/a62640e4-fc6a-4866-b3d7-da138e764bb3)
+
+![DSCF0075 (1)](https://github.com/marcus604/VinylScrobbler/assets/2810211/071ac845-91e2-46c8-851c-1730e6f0f7aa)
+
+
+
 
 ## Setup
 
